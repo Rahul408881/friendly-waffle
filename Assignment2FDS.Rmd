@@ -1,0 +1,635 @@
+---
+title: "Assignment2"
+author: "Rahul Pandya"
+date: "2023-04-20"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+Problem 1.a
+Importing the dataset and printing the summary stats
+```{r}
+setwd("C:/Users/rahul/Downloads/FUNDAMENTALS OF DATA SCIENCE - 4152023 - 418 PM/Assignment 2")
+#importing data and summary
+df <- read.csv("BankData.csv")
+summary(df)
+```
+Here, we have 9 numerical variables including(x, cont1-cont 6, credit score, ages ) and the categorical variables of approval and bool1 - bool3
+```{r}
+#DROPPING THE NANA VALUES AND SUMMARIZING THE DATA
+library(tidyr)
+#dropping the nan values from cont1 and cont5 columns
+df <- df %>% drop_na(cont1)
+df <- df %>% drop_na(cont5)
+summary(df)
+```
+```{r}
+library(ggplot2)
+#density plot for approval and bool1
+ggplot(df, aes(x = approval, fill = bool1)) +
+  geom_density(alpha = 0.5) +
+  theme_classic()
+```
+Here, we can visualize the density plot for approval rates of the credit cards w.r.t the bool 1 truth values.
+```{r}
+# Bar plot for age count
+ggplot(df, aes(x = ages)) +
+  geom_bar(fill = 'darkslategray3', color = 'black', alpha = 0.5) +
+  theme_classic()
+```
+Age over the dataset can be best visualized using histograms or bar plots. Here, we can see and estimate the maximum age for credit cards exist between ages 30-50
+```{r}
+#density plot for credit score and approval
+ggplot( df, aes( x= credit.score,color = approval ) ) +
+geom_density() +theme_classic()
+
+```
+
+```{r}
+#density plot for cont1 and bool2
+ggplot(df, aes(x = cont1, fill = bool2)) +
+  geom_density(alpha = 0.5) +
+  theme_classic()
+```
+Problem 1.b Applying normalization to the data
+```{r}
+#applying normalization to data
+head(df)
+```
+```{r}
+#install.packages("caret")
+library(caret)
+```
+Here, we have the numerical variables in the dataset from the above 1.a We shall implement normalization of these variables. Here, cont1-cont6 are the variables where we shall be applying z-score and min-max normalization. Z-score normalization refers to the process of normalizing every value in a dataset such that the mean of all of the values is 0 and the standard deviation is 1.
+```{r}
+#Applying z-score normalization to the columns conataining the numerical variables cont1- cont6
+df2 <- preProcess(df[, c("cont1", "cont2", "cont3", "cont4","cont5","cont6")], method = c("center", "scale"))
+norm_df <- predict(df2, df[, c("cont1", "cont2", "cont3", "cont4","cont5","cont6")])
+
+#summary(norm_df[, c("cont1", "cont2", "cont3", "cont4","cont5","cont6")])
+summary(norm_df)
+```
+As we can see from the summary, the mean of all the values for cont1-cont6 is 0.00
+In this normalization, a linear transformation is performed on the columns values. The minimum values shall be scaled to 0 and the maximum value shall be 1. 
+```{r}
+#applying min-max normalization to the same columns
+df3 <- preProcess(df[, c("cont1", "cont2", "cont3", "cont4","cont5","cont6")], method = c("range"))
+minmax_df <- predict(df3, df[, c("cont1", "cont2", "cont3", "cont4","cont5","cont6")])
+
+#summary(min&max_df[, c("cont1", "cont2", "cont3", "cont4","cont5","cont6")])
+summary(minmax_df)
+```
+As we can see from the summary, the min of all the values for cont1-cont6 is 0.00 and the max value is 1.00
+
+It normalizes by moving the decimal point of values of the data. To normalize the data by this technique, we divide each value of the data by the maximum absolute value of data.Here, apart from the cont1-cont 6 values we have the numerical variables of ages and credit score.Since age is a 2 digit number not large enough to scale, we shall scale the credit score by dividing it with the total number of digits of the score. 
+```{r}
+deci_df <- df
+# Find the maximum absolute value of the column
+max_abs <- max(abs(deci_df$credit.score))
+
+# Apply decimal scaling with a power of 10 equal to the number of digits in the maximum absolute value
+deci_df$credit.score.decimal <- deci_df$credit.score / (10^ceiling(log10(max_abs)))
+
+# View the new column
+head(deci_df)
+```
+Problem 1.c Visualizing the new distributions. After applying the normalizations , these visualizations are now more clearer and easy to interpret due to the scaling.
+```{r}
+#visualization of the normalizations
+#density plot for cont1 and bool2
+ggplot(norm_df, aes(x = cont1)) +
+  geom_density(alpha = 0.5) +
+  theme_classic()
+```
+
+```{r}
+ggplot(minmax_df, aes(x = cont1)) +
+  geom_density(alpha = 0.5) +
+  theme_classic()
+```
+
+
+
+```{r}
+ggplot(deci_df,aes(x=credit.score.decimal)) + geom_histogram(fill = 'darkslategray3',color='black',bins=12)
+
+```
+Problem 1.d 
+```{r}
+# considering the creduit score variable as v for visualization
+new_df <- df
+new_df$v <- new_df$credit.score
+new_df <- new_df %>% drop_na(v)
+hist(new_df$v, breaks = 20, main = "Histogram of Credit Score")
+
+
+```
+Considering the credit score of the users, we can decide to give credit cards to the users based on the credit score of each user.It shall depend on what score they have. To classify the score into three categories we shall use low, medium and high. A credit score within the range of 600-670 is low and 670-740 is medium, and 740-810 is high. This we can easily check from the summary. 
+```{r}
+new_df$v_bins <- cut(new_df$credit.score, breaks = c(600, 670, 740, 810), labels = c("low", "medium", "high"))
+new_df <- new_df %>% drop_na(v_bins)
+summary(new_df)
+```
+1.e The last two columns of the summary show the minimum, first quartile, median, mean, third quartile, and maximum values for the "v_bins" and "v_smoothed" variables. "v_bins" is a factor variable that categorizes the "v" variable into three bins (low, medium, high), while "v_smoothed" is a smoothed version of the "v" variable, calculated as the mean of "v" within each bin.
+```{r}
+new_df$v_smoothed <- with(new_df, tapply(v, v_bins, mean)[v_bins])
+summary(new_df)
+```
+```{r}
+#smoothing
+head(new_df)
+```
+```{r}
+#install.packages("kernlab")
+#install.packages("caret")
+```
+
+
+Problem 2: a
+Apply SVM to the data from Problem 1 to predict approval and report the accuracy using 10-fold cross
+validation.
+
+```{r}
+library(kernlab)
+library(caret)
+```
+
+```{r}
+#Dropping the missing values from the data
+credit.data <- read.csv("BankData.csv")
+credit.data <- credit.data %>% drop_na(cont1)
+credit.data <- credit.data %>% drop_na(cont5)
+credit.data<-na.omit(credit.data)
+head(credit.data)
+```
+Model fitting and Prediction with approval. First we shall partition the data into training and testing sets and apply SVM model for prediction.The training data frame contains 75% of the observations and will be used to train the SVM model, while the testing data frame contains the remaining 25% of observations and will be used to evaluate the model's performance.In this case, the cross-validation method is repeated k-fold cross-validation (method = "repeatedcv"), with k=10 (number = 10) folds and 7 repetitions (repeats = 7).
+```{r}
+train_credit <- createDataPartition(y = credit.data$approval, p= 0.75, list = FALSE)
+training_credit <- credit.data[train_credit,]
+testing_credit <- credit.data[-train_credit,]
+training_credit[["approval"]] = factor(training_credit[["approval"]])
+testing_credit[["approval"]] = factor(testing_credit[["approval"]])
+#k-fold cross-validation (method = "repeatedcv"), with k=10 (number = 10) folds and 7 repetitions (repeats = 7).
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 7)
+#Model SVM
+svm_Linear <- train(approval ~., data = training_credit, method = "svmLinear",
+trControl=trctrl,
+preProcess = c("center", "scale"),
+tuneLength = 10)
+svm_Linear
+```
+
+
+```{r}
+# predict on testing set
+svm_Linear_pred <- predict(svm_Linear, newdata = testing_credit)
+# create confusion matrix
+conf_mat <- confusionMatrix(svm_Linear_pred, testing_credit$approval)
+# plot confusion matrix
+conf_mat$table %>%
+  as.data.frame() %>%
+  ggplot(aes(x = Reference, y = Prediction)) +
+  geom_tile(aes(fill = Freq), colour = "white") +
+  geom_text(aes(label = Freq), vjust = 1.5, colour = "black") +
+  scale_fill_gradient(low = "green", high = "steelblue") +
+  theme_minimal() +
+  labs(title = "Confusion Matrix",
+       x = "Reference",
+       y = "Prediction")
+```
+
+```{r}
+#Confusion Matrix statistics
+confusionMatrix(table(svm_Linear_pred,testing_credit$approval))
+svm_Linear_pred
+```
+
+Problem 2.b
+```{r}
+grid <- expand.grid(C = 10^seq(-5,2,0.7))
+svm_Linear_Grid <- train(approval ~., data = training_credit, method = "svmLinear",
+                         trControl=trctrl,
+                         preProcess = c("center", "scale"),
+                         tuneGrid = grid,
+                         tuneLength = 10)
+svm_Linear_Grid
+```
+Here in the Grid grid is a data frame created by expand.grid that contains all possible combinations of hyperparameters to try. In this case, it creates a grid of 32 values for the regularization parameter C, ranging from 10^-5 to 10^2 in steps of 0.7. Using these parametrics we have a result accuracy of 88.48 from the confusion matrix below. The final value used for the model was C = 0.006309573
+
+```{r}
+# predict on testing set
+svm_Linear_grid_cf <- predict(svm_Linear_Grid, newdata = testing_credit)
+# create confusion matrix
+conf_mat <- confusionMatrix(svm_Linear_grid_cf, testing_credit$approval)
+# plot confusion matrix
+conf_mat$table %>%
+  as.data.frame() %>%
+  ggplot(aes(x = Reference, y = Prediction)) +
+  geom_tile(aes(fill = Freq), colour = "white") +
+  geom_text(aes(label = Freq), vjust = 1.5, colour = "black") +
+  scale_fill_gradient(low = "green", high = "steelblue") +
+  theme_minimal() +
+  labs(title = "Confusion Matrix",
+       x = "Reference",
+       y = "Prediction")
+```
+Problem 2.c 
+The regularization parameter 'C' determines the trade-off between maximizing the margin (distance between the decision boundary and the data points) and minimizing the classification error.By performing a grid search, the model is able to search through a range of 'C' values and select the optimal value based on the performance of the model on the validation set. This helps to improve the generalization performance of the model, and prevent overfitting to the training set.
+```{r}
+#summary stats of confusion matrix
+svm_Linear_grid_cf
+confusionMatrix(table(svm_Linear_grid_cf, testing_credit$approval))
+
+```
+
+Problem 3.a
+Importing the starwars dataset and dropping the columns of films, vehicles, starships and name.
+```{r}
+#importing the dataset
+library(dplyr)
+df_sw <- starwars
+head(df_sw)
+
+```
+
+```{r}
+#dropping columns and removing missing values
+library(dplyr)
+df_sw1 <- df_sw %>% select(-c("name","films", "vehicles","starships"))
+df_sw1 <- na.omit(df_sw1) 
+df_sw1 <- data.frame(df_sw1)
+df_sw1
+```
+Implementing dummy variables using the caret library
+```{r}
+library(caret)
+cat_vars <- dummyVars(gender~.,data=df_sw1)
+cat_vars
+
+```
+Making a new dataframe for model fitting and predictions analytics
+```{r}
+library(caret)
+df_sw2 <- data.frame(predict(cat_vars, newdata = df_sw1))
+head(df_sw2)
+df_sw3 <- df_sw2
+df_sw3$gender <- df_sw1$gender
+#df_sw3
+```
+
+```{r}
+str(df_sw3)
+```
+
+
+Problem 2.b
+```{r}
+#SVM model fitting and prediction
+train_sw <- createDataPartition(y = df_sw3$gender, p= 0.75, list = FALSE)
+training_sw <- df_sw3[train_sw,]
+testing_sw <- df_sw3[-train_sw,]
+training_sw[["gender"]] = factor(training_sw[["gender"]])
+testing_sw[["gender"]] = factor(testing_sw[["gender"]])
+trctrl <- trainControl(method = "cv",number=5)
+svm_Linear <- train(gender ~., data = training_sw, method = "svmLinear",
+trControl=trctrl)
+svm_Linear
+
+```
+Confusion Matrix
+```{r}
+cfmat_sw <- predict(svm_Linear, newdata = testing_sw)
+confusionMatrix(table(cfmat_sw,testing_sw$gender))
+cfmat_sw
+```
+
+```{r}
+# predict on testing set
+cfmat_sw <- predict(svm_Linear, newdata = testing_sw)
+# create confusion matrix
+conf_mat_sw <- confusionMatrix(cfmat_sw, testing_sw$gender)
+# plot confusion matrix
+conf_mat_sw$table %>%
+  as.data.frame() %>%
+  ggplot(aes(x = Reference, y = Prediction)) +
+  geom_tile(aes(fill = Freq), colour = "white") +
+  geom_text(aes(label = Freq), vjust = 1.5, colour = "black") +
+  scale_fill_gradient(low = "green", high = "steelblue") +
+  theme_minimal() +
+  labs(title = "Confusion Matrix",
+       x = "Reference",
+       y = "Prediction")
+```
+
+Problem 3.c Applying Principal Component Analysis to the variables
+```{r}
+head(df_sw2)
+```
+
+```{r}
+df_pca <- prcomp(df_sw2)
+summary(df_pca)
+
+```
+
+
+```{r}
+#install.packages("plotly")
+```
+```{r}
+#install.packages("factoextra")
+```
+
+```{r}
+library(factoextra)
+# Create a scree plot with pca labels and title
+screeplot(df_pca, type = "l") + title(xlab = "PCAs")
+```
+```{r}
+biplot(df_pca, scale = 0)
+
+```
+
+
+
+```{r}
+df_pca_temp <- preProcess(df_sw2, method="pca", pcaComp=5)
+df_sw4 <- predict(df_pca_temp, df_sw2)
+df_sw4$gender <- df_sw3$gender
+(df_sw4)
+```
+
+Problem 2. d 
+Applying SVM to the above dataframe
+
+```{r}
+train_sw_pca <- createDataPartition(y = df_sw4$gender, p= 0.75, list = FALSE)
+training_pca <- df_sw4[train_sw_pca,]
+testing_pca <- df_sw4[-train_sw_pca,]
+training_pca[["gender"]] = factor(training_pca[["gender"]])
+testing_pca[["gender"]] = factor(testing_pca[["gender"]])
+trctrl <- trainControl(method = "cv",number=7)
+svm_Linear_sw_pca <- train(gender ~., data = training_pca, method = "svmLinear",
+trControl=trctrl)
+svm_Linear_sw_pca
+```
+
+```{r}
+cfmat_sw_pca <- predict(svm_Linear_sw_pca, newdata = testing_pca)
+cfmat_sw_pca
+confusionMatrix(table(cfmat_sw_pca,testing_pca$gender))
+```
+
+```{r}
+# predict on testing set
+cfmat_sw_pca <- predict(svm_Linear_sw_pca, newdata = testing_pca)
+# create confusion matrix
+conf_mat_sw_pca <- confusionMatrix(cfmat_sw_pca, testing_pca$gender)
+# plot confusion matrix
+conf_mat_sw_pca$table %>%
+  as.data.frame() %>%
+  ggplot(aes(x = Reference, y = Prediction)) +
+  geom_tile(aes(fill = Freq), colour = "white") +
+  geom_text(aes(label = Freq), vjust = 1.5, colour = "black") +
+  scale_fill_gradient(low = "green", high = "steelblue") +
+  theme_minimal() +
+  labs(title = "Confusion Matrix",
+       x = "Reference",
+       y = "Prediction")
+```
+Problem 3.e 
+The PCA helps in reudcing the number of features by transformation and also reduces correlated features to increase model stability and accuracy. However, it is important to note that PCA is not always beneficial for improving model performance. In some cases, it may actually harm performance if the most important features are discarded or if the reduced dimensionality does not capture enough of the important variation in the data. Therefore, it is important to carefully evaluate the impact of PCA on model performance before applying it to a given dataset.
+```{r}
+grid <- expand.grid(C = 10^seq(-5,2,0.7))
+svm_Linear_Grid <- train(gender ~., data = training_pca, method = "svmLinear",
+                         trControl=trctrl,
+                         preProcess = c("center", "scale"),
+                         tuneGrid = grid,
+                         tuneLength = 10)
+svm_Linear_Grid
+```
+```{r}
+svm_Linear_Grid
+
+```
+
+#Problem Bonus
+Bonus a. 
+```{r}
+#install.packages("dslabs")
+library(dplyr)
+library(dslabs)
+
+df_sacra <- read.csv("Sacramentorealestatetransactions.csv")
+head(df_sacra)
+```
+
+```{r}
+library(dplyr)
+df_sacra <- df_sacra %>% select(-c("zip", "city"))
+summary(df_sacra)
+```
+
+```{r}
+library(ggplot2)
+#density plot for approval and bool1
+ggplot(df_sacra, aes(x = price, fill = type)) +
+  geom_density(alpha = 0.5) +
+  theme_classic()
+```
+
+```{r}
+df_sacra <- na.omit(df_sacra)
+df_sacra1 <- df_sacra
+str(df_sacra1)
+```
+
+```{r}
+#install.packages("moments")
+library(MASS)
+library(ggplot2)
+library(gridExtra)
+library(moments)
+# Plot the histogram of sale prices
+ggplot(df_sacra, aes(x = price)) +
+  geom_histogram(binwidth = 10000, fill = "steelblue", color = "white") +
+  labs(title = "Sale Price Distribution", x = "Sale Price", y = "Count")
+```
+
+```{r}
+# Get the fitted parameters for normal distribution
+fit <- fitdistr(df_sacra$price, "normal")
+
+# Print the fitted parameters
+cat("mu = ", fit$estimate[1], "\n")
+cat("sigma = ", fit$estimate[2], "\n")
+```
+
+```{r}
+# Create a normal probability plot
+qqnorm(df_sacra$price)
+qqline(df_sacra$price)
+```
+
+```{r}
+# Print the skewness and kurtosis of sale prices
+cat("Skewness: ", round(skewness(df_sacra$price), 2), "\n")
+cat("Kurtosis: ", round(kurtosis(df_sacra$price), 2), "\n")
+```
+```{r}
+library(dplyr)
+colnames(df_sacra)
+df_sacra1 <- df_sacra[, !(names(df_sacra) %in% c("street", "city", "state", "zip", "latitude", "longitude"))]
+head(df_sacra1)
+```
+```{r}
+#perform SVM
+train_sacra <- createDataPartition(y = df_sacra1$type, p= 0.7, list = FALSE)
+training_sacra <- df_sacra1[train_sacra,]
+testing_sacra <- df_sacra1[-train_sacra,]
+training_sacra[["type"]] = factor(training_sacra[["type"]])
+testing_sacra[["type"]] = factor(testing_sacra[["type"]])
+#SVM
+train_control = trainControl(method = "cv", number = 5)
+svm_sacra <- train(type ~., data = training_sacra, method = "svmLinear", trControl = train_control)
+svm_sacra
+```
+
+
+
+
+```{r}
+# prediction
+sacra_pred <- predict(svm_sacra, newdata = testing_sacra)
+
+# confusion matrix
+library(caret)
+confusionMatrix(data = factor(sacra_pred), reference = factor(testing_sacra$type))
+
+```
+
+```{r}
+grid <- expand.grid(C = 10^seq(-5,2,0.5))
+svm_Linear_Grid_sacra <- train(type ~., data = training_sacra, method = "svmLinear",
+                         trControl=trctrl,
+                         preProcess = c("center", "scale"),
+                         tuneGrid = grid,
+                         tuneLength = 10)
+svm_Linear_Grid_sacra
+```
+
+```{r}
+sacra_grid <- predict(svm_Linear_Grid_sacra, newdata = testing_sacra)
+library(caret)
+confusionMatrix(data = factor(sacra_grid), reference = factor(testing_sacra$type))
+
+```
+d.
+```{r}
+# Read in the data
+#install.packages("dplyr")
+library(caret)
+library(dplyr)
+
+# Read in the data
+dfs <- read.csv("Sacramentorealestatetransactions.csv")
+dfs <- na.omit(dfs)
+colnames(dfs)
+```
+
+```{r}
+
+library(caret)
+library(e1071)
+
+# Remove irrelevant variables
+dfs <- dfs[, -c(1, 2, 3, 4, 11, 12)]
+
+# Remove rows with missing values
+dfs <- na.omit(dfs)
+
+# Remove outliers based on the Z-score method
+z <- abs(scale(dfs$price))
+dfs <- dfs[z < 3, ]
+
+# Normalize the data
+normalize <- function(x) {
+  if (is.numeric(x)) {
+    return ((x - min(x)) / (max(x) - min(x)))
+  } else {
+    return (x)
+  }
+}
+dfs_norm <- as.data.frame(lapply(dfs, normalize))
+dfs_norm <- na.omit(dfs_norm)
+head(dfs_norm)
+```
+
+```{r}
+dfs_norm <- na.omit(dfs_norm)
+summary(dfs_norm)
+```
+
+
+```{r}
+library(e1071)
+library(caret)
+
+# split data into training and testing sets
+set.seed(123)
+trainIndex <- createDataPartition(dfs_norm$type, p = .8, list = FALSE)
+trainData <- dfs_norm[trainIndex, ]
+testData <- dfs_norm[-trainIndex, ]
+
+# set up training control
+train_control <- trainControl(method = "cv", number = 7)
+
+# train SVM model with linear kernel
+svm_Sacramento <- train(type ~ ., data = trainData, method = "svmLinear", trControl = train_control, preProc = c("center", "scale"))
+
+# predict on test set
+svm_Sacramento_pred <- predict(svm_Sacramento, newdata = testData)
+
+
+```
+```{r}
+svm_Sacramento
+```
+
+```{r}
+set.seed(123)
+folds <- rep(1:5, length.out = nrow(mtcars))
+folds <- sample(folds)
+mtcars$fold <- folds
+
+```
+
+```{r}
+library(ggplot2)
+ggplot(mtcars, aes(x = factor(fold), y = cyl)) +
+  geom_boxplot() +
+  labs(x = "Fold", y = "Cylinders")
+
+library(ggplot2)
+ggplot(mtcars, aes(x = factor(fold), y = gear)) +
+  geom_boxplot() +
+  labs(x = "Fold", y = "Gear")
+
+```
+
+```{r}
+# Create scatter plot of gear variable across folds
+ggplot(mtcars, aes(x = fold, y = gear)) +
+  geom_point() +
+  labs(x = "Fold Index", y = "Gear") +
+  ggtitle("Distribution of Gear Variable Across Folds")
+
+# Create scatter plot of gear variable across folds
+ggplot(mtcars, aes(x = fold, y = cyl)) +
+  geom_point() +
+  labs(x = "Fold Index", y = "Cylinders") +
+  ggtitle("Distribution of Gear Variable Across Folds")
+```
+
+
